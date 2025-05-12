@@ -93,7 +93,7 @@ def addAllVariables(dfw, syst_name, isData, trigger_class, lepton_legs, isSignal
     dfw.Apply(Corrections.getGlobal().btag.getWPid)
     jet_obs = []
     jet_obs.extend(JetObservables)
-    dfw.Apply(AnaBaseline.ApplyJetSelection)
+    #dfw.Apply(AnaBaseline.ApplyJetSelection)
     if not isData:
         #dfw.Define(f"Jet_genJet_idx", " FindMatching(Jet_p4,GenJet_p4,0.3)")
         jet_obs.extend(JetObservablesMC)
