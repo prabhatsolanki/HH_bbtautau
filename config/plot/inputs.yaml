@@ -23,11 +23,11 @@
     - VV
   title: "VV"
   color: kOrange-4
-- name: W
-  types:
-    - W
-  title: "W #rightarrow l#nu + jets"
-  color: kOrange+1
+#- name: W
+#  types:
+#    - W
+#  title: "W #rightarrow l#nu + jets"
+#  color: kOrange+1
 - name: single_H
   title: "H"
   types:
@@ -39,12 +39,12 @@
 #   title: "Other"
 #   types: []
 #   color: kPink+2
-- name: GluGlutoHHto2B2Tau_kl_1p00_kt_1p00_c2_0p00
-  title: "GGtoHHto2B2Tau"
-  type: signal
-  types:
-    - HHnonRes
-  color: kCyan
+#- name: GluGlutoHHto2B2Tau_0p00_1p00_0p00
+#  title: "GGtoHHto2B2Tau"
+#  type: signal
+#  types:
+#    - HHnonRes
+#  color: kCyan
 # - name: GluGluToBulkGraviton_1250
 #   title: "GGBG-1250"
 #   type: signal

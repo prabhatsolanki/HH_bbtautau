@@ -51,12 +51,12 @@ vars_to_plot:
   - tau1_pt
 
 channelSelection:
-  - eTau
-  - muTau
+  #- eTau
+  #- muTau
   - tauTau
-  - eE
-  - eMu
-  - muMu
+  #- eE
+  #- eMu
+  #- muMu
 
 met_type: "PuppiMET"
 deepTauVersion: 2p5
@@ -530,3 +530,5 @@ unc_to_not_consider_boosted:
   - bTagShapeSF_hfstats2
   - bTagShapeSF_cferr1
   - bTagShapeSF_cferr2
+
+ff_feature_order_json: Analysis/data/feature_order.json
