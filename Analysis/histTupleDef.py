@@ -59,6 +59,7 @@ def GetDfw(
     if global_params["process_name"] == "DY":
         datasetType = 2
     kwargset["whichType"] = datasetType
+    kwargset["run_ffs"] = global_params.get("run_ffs", False)
     dfw = analysis.DataFrameBuilderForHistograms(df, global_params, period, **kwargset)
 
     if df_caches:
@@ -105,3 +106,15 @@ def DefineWeightForHistograms(
         ):
             weight_name = unc_cfg_dict[uncName]["expression"].format(scale=uncScale)
     dfw.df = dfw.df.Define(final_weight_name, weight_name)
+
+    # fake-factor “shape” weight, only for central
+    if isCentral:
+        cols = set(map(str, dfw.df.GetColumnNames()))
+        if "ff_comb_weight" in cols:
+            if process_group == "data":
+                # data: the ML weight is just the FF comb weight
+                dfw.df = dfw.df.Define("weight_MLshape_Central", "ff_comb_weight")
+            else:
+                # MC: multiply the already defined final_weight by the FF comb weight
+                dfw.df = dfw.df.Define("weight_MLshape_Central", "final_weight * ff_comb_weight")
+            dfw.colToSave.append("weight_MLshape_Central")

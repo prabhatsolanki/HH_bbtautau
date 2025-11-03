@@ -1,5 +1,5 @@
 import ROOT
-
+import json
 if __name__ == "__main__":
     sys.path.append(os.environ["ANALYSIS_PATH"])
 
@@ -485,6 +485,93 @@ class DataFrameBuilderForHistograms(DataFrameBuilderBase):
             "eleEta2016 && tau1_iso_medium && muon1_tightId && muon2_tightId && firstele_mvaIso",
         )
 
+    def define_w_ff_columns(self):
+        if self.run_ffs and "tauTau" in self.config['channelSelection']:
+            print("Defining w_ff columns using ONNX runner ...")
+            # Load the exact feature order expected by ONNX 
+            analysis_path = os.environ["ANALYSIS_PATH"]
+            feat_order_path = os.path.join(analysis_path, "Analysis/data/feature_order.json")
+
+            with open(feat_order_path, 'r') as f:
+                fo = json.load(f)
+            feature_order = fo['feature_order']        
+            model_type    = fo.get('model_type', 'single')
+
+            # Columns we know how to map directly from per tau branches
+            direct_cont = {
+                'pt', 'eta', 'mass',
+                'seedingJet_pt', 'seedingJet_eta', 'seedingJet_mass',
+                'btagPNetB', 'btagPNetCvB', 'btagPNetCvL', 'btagPNetCvNotB', 'btagPNetQvG'
+            }
+            
+            # Build a C++ expression that creates a float vector in the ONNX feature_order
+            def make_tau_vec_expr(tau_prefix: str) -> str:
+                items = []
+                for feat in feature_order:
+                    if feat in direct_cont:
+                        items.append(f"{tau_prefix}_{feat}")
+                    elif feat.startswith("decayMode_"):
+                        dm_val = feat.split("_", 1)[1]
+                        items.append(f"({tau_prefix}_decayMode == {dm_val} ? 1.f : 0.f)")
+                    else:
+                        items.append("0.f")
+                return "std::vector<float>{" + ", ".join(items) + "}"
+
+            # Per-tau raw feature vectors
+            tau1_feature_vector = make_tau_vec_expr("tau1")
+            tau2_feature_vector = make_tau_vec_expr("tau2")
+
+            tau1_expression = f"ff_interface::get_ff_runner().compute_w_ff({tau1_feature_vector})"
+            tau2_expression = f"ff_interface::get_ff_runner().compute_w_ff({tau2_feature_vector})"
+
+            self.df = self.df.Define("tau1_w_ff", tau1_expression)
+            self.df = self.df.Define("tau2_w_ff", tau2_expression)
+
+            # Iso / anti-iso flags
+            deepTau_medium_wp = Utilities.WorkingPointsTauVSjet.Medium.value
+            deepTau_vvloose_wp = Utilities.WorkingPointsTauVSjet.VVLoose.value
+            deepTau_vsjet_version = f"idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet"
+
+            self.df = self.df.Define("tau1_is_iso_ff",      f"tau1_{deepTau_vsjet_version} >= {deepTau_medium_wp}")
+            self.df = self.df.Define("tau1_is_antiiso_ff",  f"(tau1_{deepTau_vsjet_version} >= {deepTau_vvloose_wp} && tau1_{deepTau_vsjet_version} < {deepTau_medium_wp})")
+            self.df = self.df.Define("tau2_is_iso_ff",      f"tau2_{deepTau_vsjet_version} >= {deepTau_medium_wp}")
+            self.df = self.df.Define("tau2_is_antiiso_ff",  f"(tau2_{deepTau_vsjet_version} >= {deepTau_vvloose_wp} && tau2_{deepTau_vsjet_version} < {deepTau_medium_wp})")
+
+            # Combine per-event
+            self.df = self.df.Define("is_tau1_leading", "tau1_pt > tau2_pt")
+            self.df = self.df.Define("ff_lead",         "is_tau1_leading ? tau1_w_ff : tau2_w_ff")
+            self.df = self.df.Define("ff_sublead",      "is_tau1_leading ? tau2_w_ff : tau1_w_ff")
+            self.df = self.df.Define("iso_lead",        "is_tau1_leading ? tau1_is_iso_ff : tau2_is_iso_ff")
+            self.df = self.df.Define("antiiso_lead",    "is_tau1_leading ? tau1_is_antiiso_ff : tau2_is_antiiso_ff")
+            self.df = self.df.Define("iso_sublead",     "is_tau1_leading ? tau2_is_iso_ff : tau1_is_iso_ff")
+            self.df = self.df.Define("antiiso_sublead", "is_tau1_leading ? tau2_is_antiiso_ff : tau1_is_antiiso_ff")
+
+            self.df = self.df.Define("ff_comb_weight", """
+                if (!tauTau) return 1.0f;
+                float weight = 0.f;
+                if (!OS) return 0.f;
+
+                // Case 1: Leading tau is anti-iso, subleading is iso
+                if (antiiso_lead && iso_sublead) {
+                    weight += ff_lead;
+                }
+                // Case 2: Leading tau is iso, subleading is anti-iso
+                if (iso_lead && antiiso_sublead) {
+                    weight += ff_sublead;
+                }
+                // Case 3: Both are anti-iso
+                if (antiiso_lead && antiiso_sublead) {
+                    weight -= (ff_lead * ff_sublead);
+                }
+                return weight;
+            """)
+        else:
+            print("FF runner not active. Defining default w_ff columns.")
+            self.df = self.df.Define("tau1_w_ff", "1.0f")
+            self.df = self.df.Define("tau2_w_ff", "1.0f")
+            if "ff_comb_weight" not in self.df.GetColumnNames():
+                self.df = self.df.Define("ff_comb_weight", "1.0f")
+
     def defineQCDRegions(self):
         self.DefineAndAppend("OS", "tau1_charge*tau2_charge < 0")
         self.DefineAndAppend("SS", "!OS")
@@ -548,6 +635,8 @@ class DataFrameBuilderForHistograms(DataFrameBuilderBase):
         whichType=3,
         wantScales=True,
         colToSave=[],
+        run_ffs=False
+        
     ):
         super(DataFrameBuilderForHistograms, self).__init__(df)
         self.deepTauVersion = config["deepTauVersion"]
@@ -564,6 +653,7 @@ class DataFrameBuilderForHistograms(DataFrameBuilderBase):
         self.wantTriggerSFErrors = wantTriggerSFErrors
         self.wantScales = isCentral and wantScales
         self.colToSave = colToSave
+        self.run_ffs = run_ffs
 
 
 def PrepareDfForDNN(dfForHistograms):
@@ -589,6 +679,7 @@ def PrepareDfForHistograms(dfForHistograms):
     dfForHistograms.defineCRs()
     dfForHistograms.defineCategories()
     dfForHistograms.defineQCDRegions()
+    dfForHistograms.define_w_ff_columns()
     return dfForHistograms
 
 
