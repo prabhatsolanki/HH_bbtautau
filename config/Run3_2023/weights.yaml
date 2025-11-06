@@ -8,4 +8,9 @@ norm:
   MuonID_TightIDIso:
     expression: weight_tau1_MuonID_SF_LoosePFIso{scale}_rel * weight_tau2_MuonID_SF_LoosePFIso{scale}_rel * final_weight
     name: MuonID_TightIDIso
-shape: [ ]
+
+shape: # syst unc conventions here: https://gitlab.cern.ch/cms-analysis/general/systematics
+  JES_Total:
+    name: CMS_scale_j_{}
+  JER:
+    name: CMS_res_j_{}

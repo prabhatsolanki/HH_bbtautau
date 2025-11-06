@@ -14,4 +14,9 @@ norm:
 # HLT_singleEle:
 #   expression: weight_tau1_TrgSF_singleEle_singleEle{scale}_rel * final_weight
 #   name: HLT_singleEle
-shape: [ ]
+
+shape: # syst unc conventions here: https://gitlab.cern.ch/cms-analysis/general/systematics
+  JES_Total:
+    name: CMS_scale_j_{}
+  JER:
+    name: CMS_res_j_{}
