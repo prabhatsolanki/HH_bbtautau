@@ -123,7 +123,7 @@ VH:
   name: "VH"
   color: "kMagenta-3"
   datasets:
-    - ggZH_Hto2B_Zto2L
+    # - ggZH_Hto2B_Zto2L
     # - ggZH_Hto2B_Zto2L_ext1
     - ggZH_Hto2B_Zto2Q
     # - ggZH_Hto2B_Zto2Q_ext1

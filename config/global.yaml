@@ -66,6 +66,7 @@ QCDRegions:
   - SS_Iso
   - OS_AntiIso
   - SS_AntiIso
+  - OS_AntiIsoAny
 boosted_categories:
   # - boosted_cat2
   # - boosted_cat3

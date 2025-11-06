@@ -23,17 +23,18 @@
     - VV
   title: "VV"
   color: kOrange-4
-#- name: W
-#  types:
-#    - W
-#  title: "W #rightarrow l#nu + jets"
-#  color: kOrange+1
+- name: WtoLNu
+  types:
+    - W+jets
+  title: "W #rightarrow l#nu + jets"
+  color: kOrange+1
 - name: single_H
   title: "H"
   types:
     - ttH
+    - VBFH
+    - ggH
     - VH
-    - H
   color: kRed-10
 # - name: Other
 #   title: "Other"

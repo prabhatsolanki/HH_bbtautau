@@ -1,7 +1,7 @@
 import os
 
 era = "Run3_2022"
-ver = "v2510_2"
+ver = "v2510_v4"
 indir = f"/eos/user/p/prsolank/HH_bbtautau_resonant_Run3/merged_hists/{ver}/{era}/"
 plotdir = f"/eos/user/p/prsolank/HH_bbtautau_resonant_Run3/merged_hists/{ver}/{era}/plots/"
 

@@ -490,7 +490,7 @@ class DataFrameBuilderForHistograms(DataFrameBuilderBase):
             print("Defining w_ff columns using ONNX runner ...")
             # Load the exact feature order expected by ONNX 
             analysis_path = os.environ["ANALYSIS_PATH"]
-            feat_order_path = os.path.join(analysis_path, "Analysis/data/feature_order.json")
+            feat_order_path = os.path.join(analysis_path, "Analysis/data/feature_order_2022EE.json")
 
             with open(feat_order_path, 'r') as f:
                 fo = json.load(f)
@@ -529,7 +529,7 @@ class DataFrameBuilderForHistograms(DataFrameBuilderBase):
 
             # Iso / anti-iso flags
             deepTau_medium_wp = Utilities.WorkingPointsTauVSjet.Medium.value
-            deepTau_vvloose_wp = Utilities.WorkingPointsTauVSjet.VVLoose.value
+            deepTau_vvloose_wp = Utilities.WorkingPointsTauVSjet.VVVLoose.value
             deepTau_vsjet_version = f"idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet"
 
             self.df = self.df.Define("tau1_is_iso_ff",      f"tau1_{deepTau_vsjet_version} >= {deepTau_medium_wp}")
@@ -576,20 +576,39 @@ class DataFrameBuilderForHistograms(DataFrameBuilderBase):
         self.DefineAndAppend("OS", "tau1_charge*tau2_charge < 0")
         self.DefineAndAppend("SS", "!OS")
 
+        # Existing 'Iso' and 'AntiIso' (tau2-based) kept for backward-compat
         self.DefineAndAppend(
             "Iso",
-            f"(((tauTau || eTau || muTau) && (tau2_idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet >= {Utilities.WorkingPointsTauVSjet.Medium.value} )) || ((muMu||eMu) && (tau2_Muon_pfRelIso04_all < 0.15)) || (eE && tau2_Electron_pfRelIso03_all < 0.15 && tau2_Electron_mvaNoIso_WP80))",
+            f"(((tauTau || eTau || muTau) && (tau2_idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet >= {Utilities.WorkingPointsTauVSjet.Medium.value} ))"
+            f" || ((muMu||eMu) && (tau2_Muon_pfRelIso04_all < 0.15))"
+            f" || (eE && tau2_Electron_pfRelIso03_all < 0.15 && tau2_Electron_mvaNoIso_WP80))"
         )
 
         self.DefineAndAppend(
             "AntiIso",
-            f"(((tauTau || eTau || muTau) && (tau2_idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet >= {Utilities.WorkingPointsTauVSjet.VVVLoose.value} && tau2_idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet < {Utilities.WorkingPointsTauVSjet.Medium.value})) || ((muMu||eMu) && (tau2_Muon_pfRelIso04_all >= 0.15 && tau2_Muon_pfRelIso04_all < 0.3) ) || (eE && (tau2_Electron_pfRelIso03_all < 0.3 && tau2_Electron_pfRelIso03_all >= 0.15 && tau2_Electron_mvaNoIso_WP80 )))",
+            f"(((tauTau || eTau || muTau) && (tau2_idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet >= {Utilities.WorkingPointsTauVSjet.VVVLoose.value} "
+            f"&& tau2_idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet < {Utilities.WorkingPointsTauVSjet.Medium.value}))"
+            f" || ((muMu||eMu) && (tau2_Muon_pfRelIso04_all >= 0.15 && tau2_Muon_pfRelIso04_all < 0.3))"
+            f" || (eE && (tau2_Electron_pfRelIso03_all < 0.3 && tau2_Electron_pfRelIso03_all >= 0.15 && tau2_Electron_mvaNoIso_WP80 )))"
         )
 
-        self.DefineAndAppend("OS_Iso", f"lepton_preselection && OS && Iso")
-        self.DefineAndAppend("SS_Iso", f"lepton_preselection && SS && Iso")
-        self.DefineAndAppend("OS_AntiIso", f"lepton_preselection && OS && AntiIso")
-        self.DefineAndAppend("SS_AntiIso", f"lepton_preselection && SS && AntiIso")
+        # --- NEW: per-tau anti-iso flags for tauTau (same WPs as training) ---
+        dt = f"idDeepTau{self.deepTauYear()}v{self.deepTauVersion}VSjet"
+        anti1 = f"(tau1_{dt} >= {Utilities.WorkingPointsTauVSjet.VVVLoose.value} && tau1_{dt} < {Utilities.WorkingPointsTauVSjet.Medium.value})"
+        anti2 = f"(tau2_{dt} >= {Utilities.WorkingPointsTauVSjet.VVVLoose.value} && tau2_{dt} < {Utilities.WorkingPointsTauVSjet.Medium.value})"
+
+        self.DefineAndAppend("AntiIsoTau1", f"(tauTau && {anti1})")
+        self.DefineAndAppend("AntiIsoTau2", f"(tauTau && {anti2})")
+        self.DefineAndAppend("AntiIsoAny",  f"(tauTau && ( {anti1} || {anti2} ))")
+
+        # Old four regions (kept)
+        self.DefineAndAppend("OS_Iso",      f"lepton_preselection && OS && Iso")
+        self.DefineAndAppend("SS_Iso",      f"lepton_preselection && SS && Iso")
+        self.DefineAndAppend("OS_AntiIso",  f"lepton_preselection && OS && AntiIso")
+        self.DefineAndAppend("SS_AntiIso",  f"lepton_preselection && SS && AntiIso")
+
+        # --- NEW: the region we’ll actually use for FF composition ---
+        self.DefineAndAppend("OS_AntiIsoAny", f"OS && AntiIsoAny")
 
     def deepTauYear(self):
         return self.config["deepTauYears"][f"v{self.deepTauVersion}"]

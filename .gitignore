@@ -4,3 +4,8 @@
 /.law
 /config/user_custom.yaml
 __pycache__
+
+# local artifacts
+Events.root
+Analysis/plots/
+
